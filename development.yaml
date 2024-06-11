@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: project-dev
+  labels:
+    app: project-dev-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: project-dev-deploy
+  template:
+    metadata:
+      name: project-pod
+      labels:
+        app: project-dev-deploy
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: project-api-container
+        image: docker.io/library/project-api:1.1.0
+        ports:
+        - containerPort: 3000
+        resources:
+          limits:
+            cpu: 400m
+            memory: 1024Mi
+          requests:
+            cpu: 200m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /health-check
+            port: 3000
+          initialDelaySeconds: 3
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: project-service
+spec:
+  selector:
+    app: project-dev-deploy
+  ports:
+  - name: http
+    port: 3000
+    nodePort: 30000
+  type: NodePort
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: project-cronjob
+spec:
+  schedule: 10 * * * *
+  jobTemplate:
+    metadata:
+      name: cjob
+    spec:
+      parallelism: 1 # Quantidade paralela de execuções
+      completions: 1 # Quantidade de execuções pra o job se dar como concluído
+      template:
+        metadata:
+          labels:
+            cj2job: cronjob
+        spec:
+          containers:
+          - name: project-job-container
+            image: docker.io/library/project-job:1.1.0
+            resources:
+              limits:
+                cpu: 100m
+                memory: 256Mi
+              requests:
+                cpu: 50m
+                memory: 128Mi
+          restartPolicy: OnFailure

@@ -1,0 +1,1 @@
+console.log({ message: `This is a cron job`, datetime: new Date()});
